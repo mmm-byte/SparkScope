@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SparkField Estimator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for CRED-like polish */
+        body { background-color: #f8fafc; }
+        .app-container { max-width: 500px; margin: auto; }
+    </style>
+</head>
+<body class="font-sans antialiased text-gray-900">
+
+    <div id="app" class="app-container min-h-screen bg-white shadow-xl">
+        <div id="view-content" class="p-6">
+            <h1 class="text-2xl font-bold">SparkField Initializing...</h1>
+        </div>
+    </div>
+
+    <script>
+        // CHUNK 0: DATA & FOUNDATION
+        const PRICING_DATA = [
+            {"id":"ig-01","name":"Refinish Hardwood Floor","cost":2.35,"unit":"sqft"},
+            {"id":"ig-02","name":"New Hardwoods 1.5\"","cost":10.0,"unit":"sqft"},
+            {"id":"ig-03","name":"New Hardwoods 2\"","cost":4.75,"unit":"sqft"},
+            {"id":"ig-04","name":"Hardwood Splicing","cost":8.4,"unit":"sqft"},
+            {"id":"ig-05","name":"Vinyl Plank","cost":2.5,"unit":"sqft"},
+            {"id":"ig-06","name":"Carpet","cost":1.9,"unit":"sqft"},
+            {"id":"ig-07","name":"Interior Paint — 2 Tone","cost":2.95,"unit":"sqft"},
+            {"id":"ig-08","name":"Drywall Repair","cost":900.0,"unit":"1,000 sqft"},
+            // ... (I have the full list, I'll provide the rest as we build)
+            {"id":"ex-23","name":"Garage Conversion","cost":8850.0,"unit":"ea."}
+        ];
+
+        // Global State Manager
+        const state = {
+            projects: JSON.parse(localStorage.getItem('spark_projects') || '[]'),
+            currentProject: null
+        };
+
+        function saveState() {
+            localStorage.setItem('spark_projects', JSON.stringify(state.projects));
+        }
+
+        console.log("SparkField initialized with", PRICING_DATA.length, "items.");
+    </script>
+</body>
+</html>
