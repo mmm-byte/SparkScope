@@ -6,7 +6,6 @@
     <title>SparkField Estimator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles for CRED-like polish */
         body { background-color: #f8fafc; }
         .app-container { max-width: 500px; margin: auto; }
     </style>
@@ -15,7 +14,29 @@
 
     <div id="app" class="app-container min-h-screen bg-white shadow-xl">
         <div id="view-content" class="p-6">
-            <h1 class="text-2xl font-bold">SparkField Initializing...</h1>
+            <div id="dashboard-view" class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold text-gray-800">My Projects</h2>
+                    <button onclick="toggleModal(true)" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium shadow-lg hover:bg-blue-700 transition">
+                        + New Flip
+                    </button>
+                </div>
+                <div id="project-list" class="space-y-4">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm">
+            <h3 class="text-lg font-bold mb-4">New Property</h3>
+            <input id="proj-name" type="text" placeholder="Property Address" class="w-full p-3 border rounded-lg mb-3">
+            <input id="proj-buy" type="number" placeholder="Buy Price ($)" class="w-full p-3 border rounded-lg mb-3">
+            <input id="proj-arv" type="number" placeholder="Target ARV ($)" class="w-full p-3 border rounded-lg mb-4">
+            <div class="flex gap-2">
+                <button onclick="toggleModal(false)" class="w-full py-3 text-gray-600 font-bold">Cancel</button>
+                <button onclick="createProject()" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold">Create</button>
+            </div>
         </div>
     </div>
 
@@ -24,17 +45,9 @@
         const PRICING_DATA = [
             {"id":"ig-01","name":"Refinish Hardwood Floor","cost":2.35,"unit":"sqft"},
             {"id":"ig-02","name":"New Hardwoods 1.5\"","cost":10.0,"unit":"sqft"},
-            {"id":"ig-03","name":"New Hardwoods 2\"","cost":4.75,"unit":"sqft"},
-            {"id":"ig-04","name":"Hardwood Splicing","cost":8.4,"unit":"sqft"},
-            {"id":"ig-05","name":"Vinyl Plank","cost":2.5,"unit":"sqft"},
-            {"id":"ig-06","name":"Carpet","cost":1.9,"unit":"sqft"},
-            {"id":"ig-07","name":"Interior Paint — 2 Tone","cost":2.95,"unit":"sqft"},
-            {"id":"ig-08","name":"Drywall Repair","cost":900.0,"unit":"1,000 sqft"},
-            // ... (I have the full list, I'll provide the rest as we build)
             {"id":"ex-23","name":"Garage Conversion","cost":8850.0,"unit":"ea."}
         ];
 
-        // Global State Manager
         const state = {
             projects: JSON.parse(localStorage.getItem('spark_projects') || '[]'),
             currentProject: null
@@ -43,8 +56,269 @@
         function saveState() {
             localStorage.setItem('spark_projects', JSON.stringify(state.projects));
         }
-
-        console.log("SparkField initialized with", PRICING_DATA.length, "items.");
     </script>
+    <script>
+    // CHUNK 1 & 4 CONSOLIDATED LOGIC
+    function renderDashboard() {
+        const list = document.getElementById('project-list');
+        list.innerHTML = state.projects.map((p, index) => `
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-gray-800">${p.name}</h3>
+                    <p class="text-sm text-gray-500">Buy: $${p.buyPrice} | ARV: $${p.arv}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="openProject(${index})" class="text-blue-600 font-bold">Open</button>
+                    <button onclick="exportProject()" class="text-green-600 font-bold">Export</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function toggleModal(show) {
+        document.getElementById('modal').classList.toggle('hidden', !show);
+    }
+
+    function createProject() {
+        const name = document.getElementById('proj-name').value;
+        const buy = document.getElementById('proj-buy').value;
+        const arv = document.getElementById('proj-arv').value;
+
+        if(!name) return alert("Please enter a name");
+
+        state.projects.push({ name, buyPrice: buy, arv: arv, rooms: [], items: [] });
+        saveState();
+        renderDashboard();
+        toggleModal(false);
+    }
+
+    function openProject(index) {
+        state.currentProject = index;
+        document.getElementById('dashboard-view').classList.add('hidden');
+        document.getElementById('walkthrough-view').classList.remove('hidden');
+        loadRoom(0);
+    }
+
+    function showDashboard() {
+        document.getElementById('dashboard-view').classList.remove('hidden');
+        document.getElementById('walkthrough-view').classList.add('hidden');
+    }
+
+    let currentItemIndex = 0;
+    function loadRoom(index) {
+        if (index >= PRICING_DATA.length) {
+            alert("Walkthrough Complete!");
+            showDashboard();
+            return;
+        }
+        const item = PRICING_DATA[index];
+        document.getElementById('item-name').innerText = item.name;
+        document.getElementById('item-cost').innerText = `$${item.cost} / ${item.unit}`;
+        document.getElementById('progress-text').innerText = `${index + 1}/${PRICING_DATA.length}`;
+        currentItemIndex = index;
+    }
+
+    function handleSwipe(action) {
+        const item = PRICING_DATA[currentItemIndex];
+        const project = state.projects[state.currentProject];
+        
+        if (action === 'add') {
+            const qty = prompt("Enter quantity for " + item.name + " (" + item.unit + ")", 1);
+            project.items.push({
+                ...item,
+                qty: parseFloat(qty) || 1,
+                estimate: (parseFloat(qty) || 1) * item.cost
+            });
+        } else {
+            project.items.push({ ...item, qty: 0, estimate: 0 });
+        }
+        
+        saveState();
+        loadRoom(currentItemIndex + 1);
+    }
+
+    function exportProject() {
+        const project = state.projects[state.currentProject];
+        if (!project.items || project.items.length === 0) return alert("No data to export!");
+
+        const data = project.items.map(i => ({
+            "Repair Item": i.name,
+            "Unit": i.unit,
+            "Unit Cost": i.cost,
+            "Qty": i.qty,
+            "Estimate": i.estimate
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Estimate");
+        XLSX.writeFile(wb, `${project.name}_Estimate.xlsx`);
+    }
+
+    renderDashboard();
+</script>
+
+<div id="walkthrough-view" class="hidden p-6">
+    <div class="flex justify-between items-center mb-6">
+        <button onclick="showDashboard()" class="text-gray-500 font-bold">← Back</button>
+        <h2 id="room-title" class="text-xl font-bold">Walkthrough</h2>
+        <div class="text-blue-600 font-bold" id="progress-text">0/10</div>
+    </div>
+    
+    <div id="swipe-card" class="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 min-h-[300px] flex flex-col items-center justify-center text-center">
+        <h3 id="item-name" class="text-2xl font-bold mb-4">Item</h3>
+        <p id="item-cost" class="text-gray-500 text-lg mb-8">Price</p>
+        
+        <div class="w-full flex gap-4">
+            <button onclick="handleSwipe('skip')" class="flex-1 py-4 bg-gray-100 rounded-2xl font-bold">Skip</button>
+            <button onclick="handleSwipe('add')" class="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold">Add Item</button>
+        </div>
+    </div>
+    </div>
+    <script>
+    // CHUNK 2: LOGIC
+    function showDashboard() {
+        document.getElementById('dashboard-view').classList.remove('hidden');
+        document.getElementById('walkthrough-view').classList.add('hidden');
+    }
+
+    function openProject(index) {
+        state.currentProject = index;
+        document.getElementById('dashboard-view').classList.add('hidden');
+        document.getElementById('walkthrough-view').classList.remove('hidden');
+        loadRoom(0); // Load first item
+    }
+
+    let currentItemIndex = 0;
+    function loadRoom(index) {
+        const item = PRICING_DATA[index];
+        document.getElementById('item-name').innerText = item.name;
+        document.getElementById('item-cost').innerText = `$${item.cost} / ${item.unit}`;
+        document.getElementById('progress-text').innerText = `${index + 1}/${PRICING_DATA.length}`;
+        currentItemIndex = index;
+    }
+
+    function handleSwipe(action) {
+        if(action === 'add') {
+            console.log("Adding item:", PRICING_DATA[currentItemIndex].name);
+            // We will link this to the "Add to Project" state in next chunks
+        }
+        
+        // Move to next item
+        currentItemIndex++;
+        if(currentItemIndex < PRICING_DATA.length) {
+            loadRoom(currentItemIndex);
+        } else {
+            alert("Walkthrough Complete!");
+            showDashboard();
+        }
+    }
+    </script>
+    <script>
+    // Inject Camera UI into the swipe card after load
+    const swipeCard = document.getElementById('swipe-card');
+    const cameraDiv = document.createElement('div');
+    cameraDiv.className = "mt-4 w-full";
+    cameraDiv.innerHTML = `
+        <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
+        <button onclick="document.getElementById('camera-input').click()" class="w-full py-2 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-bold">
+            📷 Add Photo
+        </button>
+        <div id="photo-preview" class="mt-2 flex gap-2 overflow-x-auto"></div>
+    `;
+    swipeCard.appendChild(cameraDiv);
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+    // CHUNK 4: LOGIC
+    
+    // Update handleSwipe to save data to the project state
+    function handleSwipe(action) {
+        const item = PRICING_DATA[currentItemIndex];
+        const project = state.projects[state.currentProject];
+        
+        if (!project.items) project.items = [];
+
+        if (action === 'add') {
+            // Ask for quantity (simple prompt for now)
+            const qty = prompt("Enter quantity for " + item.name + " (" + item.unit + ")", 1);
+            project.items.push({
+                ...item,
+                qty: parseFloat(qty) || 1,
+                estimate: (parseFloat(qty) || 1) * item.cost
+            });
+        } else {
+            // "Skip" logic: we add it with 0 quantity or just flag as skipped
+            project.items.push({ ...item, qty: 0, estimate: 0 });
+        }
+        
+        saveState();
+        
+        currentItemIndex++;
+        if(currentItemIndex < PRICING_DATA.length) {
+            loadRoom(currentItemIndex);
+        } else {
+            alert("Walkthrough Complete!");
+            showDashboard();
+        }
+    }
+
+    // Export to Excel logic
+    function exportProject() {
+        const project = state.projects[state.currentProject];
+        if (!project.items || project.items.length === 0) return alert("No data to export!");
+
+        // Format for Excel
+        const data = project.items.map(i => ({
+            "Repair Item": i.name,
+            "Unit": i.unit,
+            "Unit Cost": i.cost,
+            "Qty": i.qty,
+            "Estimate": i.estimate
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Estimate");
+        XLSX.writeFile(wb, `${project.name}_Estimate.xlsx`);
+    }
+    </script>
+    <style>
+    body { background-color: #f1f5f9; font-family: 'Inter', sans-serif; }
+    .app-container { max-width: 500px; margin: auto; background: white; min-height: 100vh; }
+    /* CRED-like card effect */
+    .premium-card { 
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(226, 232, 240, 1);
+        border-radius: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    </style>
+    // CHUNK 5: HEALTH ANALYZER
+function getHealth(project) {
+    const totalCost = (project.items || []).reduce((sum, item) => sum + item.estimate, 0);
+    const buyPrice = parseFloat(project.buyPrice);
+    const arv = parseFloat(project.arv);
+    const profit = arv - (buyPrice + totalCost);
+    const margin = (profit / arv) * 100;
+    
+    return { totalCost, profit, margin: margin.toFixed(1) };
+}
+// CHUNK 5: HEALTH ANALYZER
+function getHealth(project) {
+    const totalCost = (project.items || []).reduce((sum, item) => sum + item.estimate, 0);
+    const buyPrice = parseFloat(project.buyPrice);
+    const arv = parseFloat(project.arv);
+    const profit = arv - (buyPrice + totalCost);
+    const margin = (profit / arv) * 100;
+    
+    return { totalCost, profit, margin: margin.toFixed(1) };
+}
+<script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('data:text/javascript,console.log("Service Worker Active")');
+    }
+</script>
 </body>
 </html>
